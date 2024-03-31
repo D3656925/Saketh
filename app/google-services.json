@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "805333754319",
+    "project_id": "commuter-carpooling",
+    "storage_bucket": "commuter-carpooling.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:805333754319:android:fca5c74b4c87aafce832ba",
+        "android_client_info": {
+          "package_name": "uk.ac.tees.mad.d3656925"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "805333754319-g9rm3vv5vga2d1kvk7ijkmisou8aggcc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "uk.ac.tees.mad.d3656925",
+            "certificate_hash": "50142d843a625db3db251955a702b560ad8b2392"
+          }
+        },
+        {
+          "client_id": "805333754319-df1b1lvb5jmehet1b3sru5sl3iehc1d0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuM6Sc5eJhs8yDju2FlhIJ-EhXT3EZ-fY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "805333754319-df1b1lvb5jmehet1b3sru5sl3iehc1d0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

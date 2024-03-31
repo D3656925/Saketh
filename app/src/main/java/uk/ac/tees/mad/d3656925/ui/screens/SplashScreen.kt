@@ -24,13 +24,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import uk.ac.tees.mad.d3656925.R
 import uk.ac.tees.mad.d3656925.navigation.NavigationDestination
 
@@ -42,7 +39,7 @@ object SplashDestination : NavigationDestination {
 }
 
 @Composable
-fun SplashScreen(navController: NavHostController) {
+fun SplashScreen(onFinish: () -> Unit) {
     // Animation duration using Animatable
     val animTime = remember {
         Animatable(0f)
@@ -56,10 +53,7 @@ fun SplashScreen(navController: NavHostController) {
     LaunchedEffect(key1 = true) {
         animTime.animateTo(1f, animationSpec = tween(1500)) // Animation to scale the splash screen elements
         delay(3000L) // Delay before navigating to the next screen
-        launch(Dispatchers.Main) {
-            navController.popBackStack() // Clear any existing back stack
-            navController.navigate(HomeScreenDestination.routeName) // Navigate to the home screen
-        }
+        onFinish()
     }
 
     // Column layout for the splash screen content
