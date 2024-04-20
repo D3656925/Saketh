@@ -66,14 +66,14 @@ fun LoginScreen(
     onNavigateUp: () -> Unit,
     onRegisterClick: () -> Unit,
     onForgetPassword: () -> Unit
-) {
-    val signInStatus = viewModel.signInState.collectAsState(initial = null)
-    val signInState = viewModel.state.collectAsState().value
-    val loginUiState = viewModel.loginUiState.collectAsState().value
-    val focusManager = LocalFocusManager.current
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    ) {
+        val signInStatus = viewModel.signInState.collectAsState(initial = null)
+        val signInState = viewModel.state.collectAsState().value
+        val loginUiState = viewModel.loginUiState.collectAsState().value
+        val focusManager = LocalFocusManager.current
+        var passwordVisible by rememberSaveable { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
 
     Column(
         modifier = Modifier

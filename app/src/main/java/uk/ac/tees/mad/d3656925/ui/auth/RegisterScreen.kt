@@ -60,7 +60,7 @@ object RegisterDestination : NavigationDestination {
 fun RegisterScreen(
     viewModel: LoginViewModel = hiltViewModel(),
     registerSuccess: () -> Unit,
-    onNavigateUp: () -> Unit
+        onNavigateUp: () -> Unit
 ) {
     val signUpstate = viewModel.signUpState.collectAsState(initial = null)
     val signUpUiState = viewModel.signUpUiState.collectAsState().value

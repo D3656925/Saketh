@@ -1,12 +1,8 @@
 package uk.ac.tees.mad.d3656925.ui.auth
 
-import android.util.Log
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.firestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +17,7 @@ import uk.ac.tees.mad.d3656925.domain.RegisterState
 import uk.ac.tees.mad.d3656925.domain.Resource
 import uk.ac.tees.mad.d3656925.domain.SignInResult
 import uk.ac.tees.mad.d3656925.domain.UserData
+import uk.ac.tees.mad.d3656925.domain.UserResponse
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,6 +43,12 @@ class LoginViewModel @Inject constructor(
 
     private val _signUpState = Channel<RegisterState>()
     val signUpState = _signUpState.receiveAsFlow()
+
+    private val _currentUserStatus = Channel<CurrentUser>()
+    val currentUserStatus = _currentUserStatus.receiveAsFlow()
+
+    private val _updateDetailStatus = Channel<LoginStatus>()
+    val updateDetailsStatus = _updateDetailStatus.receiveAsFlow()
 
     fun resetState() {
         _state.update { LoginState() }
@@ -106,40 +109,30 @@ class LoginViewModel @Inject constructor(
         repository.saveUser(email = user.email, username = user.username, userId = user.userId)
     }
 
-    var username = mutableStateOf("Guest")
-    private var myDatabase = Firebase.firestore
-    private val uid = firebaseAuth.currentUser?.uid
-
     init {
         getUserDetails()
     }
 
-    private fun getUserDetails() {
+    fun getUserDetails() =
         viewModelScope.launch {
-            if (uid != null) {
-                myDatabase.collection("users").document(uid).get()
-                    .addOnSuccessListener { mySnapshot ->
-                        Log.d("USER", "$mySnapshot")
 
-                        if (mySnapshot.exists()) {
-                            val list = mySnapshot.data
-                            if (list != null) {
-                                for (items in list) {
-                                    if (items.key == "username") {
-                                        username.value = items.value.toString()
-                                    }
-                                }
-                            }
-                        } else {
-                            println("No data found in Database")
-                        }
-                    }.addOnFailureListener {
-                        println("$it")
+            repository.getCurrentUser().collect { result ->
+                when (result) {
+                    is Resource.Error -> {
+                        _currentUserStatus.send(CurrentUser(isError = result.message))
                     }
-            }
 
+                    is Resource.Loading -> {
+                        _currentUserStatus.send(CurrentUser(isLoading = true))
+                    }
+
+                    is Resource.Success -> {
+                        _currentUserStatus.send(CurrentUser(isSuccess = result.data))
+
+                    }
+                }
+            }
         }
-    }
 
     fun updateSignUpState(value: SignUpUiState) {
         _signupUiState.value = value
@@ -162,6 +155,32 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
+
+    suspend fun addUserDetail(
+        image: ByteArray,
+        phone: String,
+        carNumber: String,
+        rating: Double
+    ) {
+        repository.updateCurrentUser(image, phone, carNumber, rating).collect {
+            when (it) {
+                is Resource.Error -> {
+                    _updateDetailStatus.send(LoginStatus(isError = it.message))
+                }
+
+                is Resource.Loading -> {
+                    _updateDetailStatus.send(LoginStatus(isLoading = true))
+
+                }
+
+                is Resource.Success -> {
+                    _updateDetailStatus.send(LoginStatus(isSuccess = it.data))
+                }
+            }
+        }
+    }
+
 }
 
 data class LoginUiState(
@@ -170,4 +189,11 @@ data class LoginUiState(
 
 data class SignUpUiState(
     val name: String = "", val email: String = "", val password: String = ""
+)
+
+
+data class CurrentUser(
+    val isLoading: Boolean = false,
+    val isSuccess: UserResponse? = null,
+    val isError: String? = null
 )

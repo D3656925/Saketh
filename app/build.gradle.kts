@@ -80,9 +80,19 @@ dependencies {
 
     //Dagger - Hilt
     implementation("com.google.dagger:hilt-android:2.47")
-
+    implementation(libs.play.services.location)
+    implementation(libs.firebase.storage.ktx)
     ksp ("com.google.dagger:hilt-compiler:2.47")
     implementation ("androidx.hilt:hilt-navigation-compose:1.0.0")
+
+    //Maps compose
+    implementation ("com.google.maps.android:maps-compose:4.3.3")
+
+    //For permission
+    implementation ("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
+
+    //Coil for Asynchronous image loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

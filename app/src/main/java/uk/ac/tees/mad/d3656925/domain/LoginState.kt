@@ -7,8 +7,8 @@ data class LoginState(
 
 data class LoginStatus(
     val isLoading: Boolean = false,
-    val isSuccess: String? = "",
-    val isError: String? = ""
+    val isSuccess: String? = null,
+    val isError: String? = null
 )
 
 data class UserData(

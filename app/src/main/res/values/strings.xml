@@ -4,4 +4,7 @@
     <string name="login">Login</string>
     <string name="register">Register</string>
     <string name="forget_password">Forgot Password</string>
+    <string name="passenger">Passenger</string>
+    <string name="driver">Driver</string>
+    <string name="add_details">Add details</string>
 </resources>

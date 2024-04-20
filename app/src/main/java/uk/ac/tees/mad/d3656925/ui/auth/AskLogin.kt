@@ -1,6 +1,7 @@
 package uk.ac.tees.mad.d3656925.ui.auth
 
 import android.app.Activity
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -32,7 +33,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,7 +67,8 @@ fun AskLogin(
     viewModel: LoginViewModel = hiltViewModel(),
     loginSuccess: () -> Unit,
     onLoginClick: () -> Unit,
-    navigateUp: () -> Unit
+    navigateUp: () -> Unit,
+    askForDetails: () -> Unit,
 ) {
     val signInState = viewModel.state.collectAsState().value
     val context = LocalContext.current
@@ -72,7 +78,10 @@ fun AskLogin(
             oneTapClient = Identity.getSignInClient(context)
         )
     }
-
+    val currentUserStatus = viewModel.currentUserStatus.collectAsState(initial = null)
+    var isGoogleSigned by remember {
+        mutableStateOf(false)
+    }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
         onResult = { result ->
@@ -223,12 +232,30 @@ fun AskLogin(
                     "Sign in successful",
                     Toast.LENGTH_LONG
                 ).show()
-                val user = googleAuthUiClient.getSignedInUser()
-                if (user != null) {
-                    viewModel.saveUserInFirestore(user)
+                viewModel.getUserDetails()
+                isGoogleSigned = true
+            }
+        }
+
+        LaunchedEffect(currentUserStatus.value?.isSuccess) {
+            if (currentUserStatus.value?.isSuccess != null && isGoogleSigned) {
+                if (currentUserStatus.value?.isSuccess?.item?.phone.isNullOrEmpty()) {
+                    val user = googleAuthUiClient.getSignedInUser()
+                    if (user != null) {
+                        Log.d("USER", currentUserStatus.value!!.isSuccess.toString())
+                        askForDetails()
+                    }
+                } else {
+                    loginSuccess()
                 }
-                viewModel.resetState()
-                loginSuccess()
+            }
+        }
+
+        LaunchedEffect(currentUserStatus.value?.isError) {
+            if (currentUserStatus.value?.isError != null && isGoogleSigned) {
+                val user = googleAuthUiClient.getSignedInUser()
+                viewModel.saveUserInFirestore(user!!)
+                askForDetails()
             }
         }
     }
