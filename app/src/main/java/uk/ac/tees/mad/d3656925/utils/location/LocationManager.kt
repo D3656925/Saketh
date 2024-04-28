@@ -10,7 +10,7 @@ import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationServices.*
+import com.google.android.gms.location.LocationServices.getSettingsClient
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationSettingsStatusCodes
 import kotlinx.coroutines.currentCoroutineContext
@@ -78,20 +78,26 @@ class LocationRepository(private val context: Context, private val activity: Act
         val geocoder = Geocoder(context, Locale.getDefault())
         var address: String? = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocation(latitude, longitude, 1) {
-                address = it.firstOrNull()?.getAddressLine(0)
+            try {
+                geocoder.getFromLocation(latitude, longitude, 1) {
+                    address = it.firstOrNull()?.getAddressLine(0)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
 
-            return address ?: "No address found"
+            return address ?: "Address not found"
         }
 
         return try {
             @Suppress("DEPRECATION")
-            address = geocoder.getFromLocation(latitude, longitude, 1)?.firstOrNull()?.getAddressLine(0)
+            address =
+                geocoder.getFromLocation(latitude, longitude, 1)?.firstOrNull()?.getAddressLine(0)
             address ?: "No address found"
         } catch (e: Exception) {
             //will catch if there is an internet problem
-            "No address found"
+            e.printStackTrace()
+            "No address"
         }
     }
 }

@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,6 +108,12 @@ fun UserDetails(
     }
     var carNumber by remember {
         mutableStateOf("")
+    }
+    var carName by remember {
+        mutableStateOf("")
+    }
+    var noOfSeats by remember {
+        mutableStateOf("2")
     }
     val updateDetailsStatus = viewModel.updateDetailsStatus.collectAsState(initial = null)
 
@@ -266,9 +273,8 @@ fun UserDetails(
                     }
                 }
             }
-            Column {
-
-                if (isDriver) {
+            if (isDriver) {
+                Column {
                     Text(text = "Car number", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
@@ -282,8 +288,51 @@ fun UserDetails(
                         },
                         maxLines = 1,
                         visualTransformation = VisualTransformation.None,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone  = {
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = {
+                            focusManager.moveFocus(FocusDirection.Down)
+                        }),
+                    )
+                }
+                Column {
+                    Text(text = "Car name", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = carName,
+                        onValueChange = {
+                            carName = it
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(text = "Car name")
+                        },
+                        maxLines = 1,
+                        visualTransformation = VisualTransformation.None,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = {
+                            focusManager.moveFocus(FocusDirection.Down)
+                        }),
+                    )
+                }
+                Column {
+                    Text(text = "Number of seats", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = noOfSeats,
+                        onValueChange = {
+                            noOfSeats = it
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(text = "2")
+                        },
+                        maxLines = 1,
+                        visualTransformation = VisualTransformation.None,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Number
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
                             focusManager.clearFocus()
                         }),
                     )
@@ -297,10 +346,17 @@ fun UserDetails(
             onClick = {
                 if (profileImage != null || phone.isNotEmpty()) {
                     scope.launch {
-                        viewModel.addUserDetail(profileImage!!, phone, carNumber, rating)
+                        viewModel.addUserDetail(
+                            profileImage!!,
+                            phone,
+                            carNumber,
+                            rating,
+                            carName,
+                            noOfSeats
+                        )
                     }
                 } else {
-                    Toast.makeText(context, "Empty filds", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Empty fields", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier

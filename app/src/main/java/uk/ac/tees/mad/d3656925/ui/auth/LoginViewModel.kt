@@ -161,9 +161,12 @@ class LoginViewModel @Inject constructor(
         image: ByteArray,
         phone: String,
         carNumber: String,
-        rating: Double
+        rating: Double,
+        carName: String,
+        noOfSeats: String,
+
     ) {
-        repository.updateCurrentUser(image, phone, carNumber, rating).collect {
+        repository.updateCurrentUser(image, phone, carNumber, rating, carName, noOfSeats).collect {
             when (it) {
                 is Resource.Error -> {
                     _updateDetailStatus.send(LoginStatus(isError = it.message))

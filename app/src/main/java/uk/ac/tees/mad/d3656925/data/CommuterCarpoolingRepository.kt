@@ -22,11 +22,24 @@ interface CommuterCarpoolingRepository {
     fun loginUser(email: String, password: String): Flow<Resource<AuthResult>>
     fun registerUser(email: String, password: String, username: String): Flow<Resource<AuthResult>>
     fun forgotPassword(email: String): Flow<Resource<Boolean>>
-    suspend fun saveUser(email: String?, username: String?, userId: String?)
+    suspend fun saveUser(
+        email: String?,
+        username: String?,
+        userId: String?,
+        profileImage: ByteArray? = null
+    )
+
     fun getCurrentUser(): Flow<Resource<UserResponse>>
     fun updateCurrentUser(
-        image: ByteArray, phone: String, carNumber: String, rating: Double
+        image: ByteArray,
+        phone: String,
+        carNumber: String,
+        rating: Double,
+        carName: String,
+        noOfSeats: String
     ): Flow<Resource<String>>
+
+    fun updateDriverStatus(): Flow<Resource<String>>
 }
 
 class CommuterCarpoolingRepositoryImpl @Inject constructor(
@@ -73,14 +86,47 @@ class CommuterCarpoolingRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun saveUser(email: String?, username: String?, userId: String?) {
+    override suspend fun saveUser(
+        email: String?,
+        username: String?,
+        userId: String?,
+        profileImage: ByteArray?
+    ) {
         if (userId != null) {
-            val userMap = hashMapOf(
-                "email" to email,
-                "username" to username
-                // Add other user data if needed
-            )
-            firebaseFirestore.collection("users").document(userId).set(userMap).await()
+
+            val storageRef = Firebase.storage.reference
+            val uuid = UUID.randomUUID()
+            val imagesRef = storageRef.child("images/$uuid")
+            val currentUserUid = firebaseAuth.currentUser?.uid
+
+            val uploadTask =
+                profileImage?.let {
+                    imagesRef.putBytes(it)
+                }
+            uploadTask?.addOnSuccessListener {
+                imagesRef.downloadUrl.addOnSuccessListener {
+                    val userMap = hashMapOf(
+                        "email" to email,
+                        "username" to username,
+                        "image" to it.toString()
+                    )
+                    firebaseFirestore.collection("users").document(userId).set(userMap).addOnSuccessListener {
+                        Log.d("profile update", "Success")
+                    }.addOnFailureListener{
+                        Log.d("profile update", "Failed")
+                    }
+                }
+            }?.addOnFailureListener{
+                val userMap = hashMapOf(
+                    "email" to email,
+                    "username" to username
+                )
+                firebaseFirestore.collection("users").document(userId).set(userMap).addOnSuccessListener {
+                    Log.d("profile update", "Success")
+                }.addOnFailureListener{
+                    Log.d("profile update", "Failed")
+                }
+            }
         }
     }
 
@@ -101,7 +147,8 @@ class CommuterCarpoolingRepositoryImpl @Inject constructor(
                                     name = data["username"] as String? ?: "",
                                     email = data["email"] as String? ?: "",
                                     phone = data["phone"] as String? ?: "",
-                                    profileImage = data["images"] as String? ?: ""
+                                    profileImage = data["image"] as String? ?: "",
+                                    isActive = data["isActive"] as Boolean? ?: false
                                 )
                             )
 
@@ -132,7 +179,9 @@ class CommuterCarpoolingRepositoryImpl @Inject constructor(
         image: ByteArray,
         phone: String,
         carNumber: String,
-        rating: Double
+        rating: Double,
+        carName: String,
+        noOfSeats: String
     ): Flow<Resource<String>> =
         callbackFlow {
             trySend(Resource.Loading())
@@ -156,6 +205,9 @@ class CommuterCarpoolingRepositoryImpl @Inject constructor(
                         map["image"] = uri.toString()
                         map["carNumber"] = carNumber
                         map["rating"] = rating
+                        map["isActive"] = false
+                        map["carName"] = carName
+                        map["noOfSeats"] = noOfSeats.toInt()
 
                         if (currentUserUid != null) {
                             firebaseFirestore.collection("users")
@@ -183,4 +235,29 @@ class CommuterCarpoolingRepositoryImpl @Inject constructor(
         }
 
 
+    override fun updateDriverStatus(): Flow<Resource<String>> =
+        callbackFlow {
+            trySend(Resource.Loading())
+
+            val currentUserUid = firebaseAuth.currentUser?.uid!!
+
+            firebaseFirestore.runTransaction { transaction ->
+                val driverRef = firebaseFirestore.collection("users").document(currentUserUid)
+                val driver = transaction.get(driverRef)
+                val isActive = driver.get("isActive") as Boolean
+                val newIsActive = !isActive
+                transaction.update(driverRef, "isActive", newIsActive)
+            }
+                .addOnSuccessListener {
+                    trySend(Resource.Success("Updated driver status"))
+
+                }
+                .addOnFailureListener { e ->
+                    trySend(Resource.Error(message = e.message))
+                }
+                .addOnFailureListener {
+                    trySend(Resource.Error(message = "Updating status failed: $it"))
+                }
+            awaitClose { close() }
+        }
 }

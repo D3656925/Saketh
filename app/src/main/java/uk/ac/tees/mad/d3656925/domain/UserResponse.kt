@@ -10,6 +10,7 @@ data class UserResponse(
         val phone: String = "",
         val profileImage: String = "",
         val lastTrips: String = "",
-        val carNumber: String = ""
+        val carNumber: String = "",
+        val isActive: Boolean = false
     )
 }

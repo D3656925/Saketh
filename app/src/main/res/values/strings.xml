@@ -7,4 +7,5 @@
     <string name="passenger">Passenger</string>
     <string name="driver">Driver</string>
     <string name="add_details">Add details</string>
+    <string name="profile">Profile</string>
 </resources>

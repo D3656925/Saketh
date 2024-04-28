@@ -3,6 +3,7 @@ package uk.ac.tees.mad.d3656925.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -23,10 +24,18 @@ import uk.ac.tees.mad.d3656925.ui.auth.UserDetails
 import uk.ac.tees.mad.d3656925.ui.auth.UserDetailsDestination
 import uk.ac.tees.mad.d3656925.ui.screens.DriverDestination
 import uk.ac.tees.mad.d3656925.ui.screens.DriverScreen
+import uk.ac.tees.mad.d3656925.ui.screens.EditProfileDestination
+import uk.ac.tees.mad.d3656925.ui.screens.EditProfileScreen
 import uk.ac.tees.mad.d3656925.ui.screens.PassengerDestination
 import uk.ac.tees.mad.d3656925.ui.screens.PassengerScreen
+import uk.ac.tees.mad.d3656925.ui.screens.PastCarpoolsDestination
+import uk.ac.tees.mad.d3656925.ui.screens.PastCarpoolsScreen
+import uk.ac.tees.mad.d3656925.ui.screens.ProfileDestination
+import uk.ac.tees.mad.d3656925.ui.screens.ProfileScreen
 import uk.ac.tees.mad.d3656925.ui.screens.SplashDestination
 import uk.ac.tees.mad.d3656925.ui.screens.SplashScreen
+import uk.ac.tees.mad.d3656925.ui.viewmodels.DriverViewModel
+import uk.ac.tees.mad.d3656925.utils.location.ApplicationViewModel
 
 @Composable
 fun CarpoolingApp() {
@@ -36,6 +45,9 @@ fun CarpoolingApp() {
     val firebase = FirebaseAuth.getInstance()
     val currentUser = firebase.currentUser
     val context = LocalContext.current
+
+    val driverViewModel: DriverViewModel = hiltViewModel()
+    val applicationViewModel: ApplicationViewModel = hiltViewModel()
 
     val googleAuthUiClient by lazy {
         GoogleAuthUiClient(
@@ -105,7 +117,7 @@ fun CarpoolingApp() {
 
         composable(UserDetailsDestination.routeName) {
             UserDetails(onSuccess = {
-
+                navController.navigate(DriverDestination.routeName)
             })
         }
 
@@ -124,14 +136,10 @@ fun CarpoolingApp() {
         // Driver screen destination
         composable(DriverDestination.routeName) {
             // Display the home screen composable
-            DriverScreen(navController = navController,
-                onLogOut = {
-                    scope.launch {
-                        firebase.signOut()
-                        googleAuthUiClient.signOut()
-                        navController.navigate(SplashDestination.routeName)
-                    }
-                }
+            DriverScreen(
+                navController = navController,
+                viewModel = driverViewModel,
+                applicationViewModel = applicationViewModel
             )
         }
 
@@ -147,6 +155,37 @@ fun CarpoolingApp() {
                     }
                 }
             )
+        }
+
+        composable(ProfileDestination.routeName) {
+            ProfileScreen(
+                onLogout = {
+                    scope.launch {
+                        firebase.signOut()
+                        googleAuthUiClient.signOut()
+                        navController.navigate(AskLoginDestination.routeName)
+                    }
+                },
+                onPastCarpool = {
+                    navController.navigate(PastCarpoolsDestination.routeName)
+                },
+                editProfile = {
+                    navController.navigate(EditProfileDestination.routeName)
+                },
+                onNavigateUp = {
+                    navController.navigateUp()
+                }
+            )
+        }
+
+        composable(EditProfileDestination.routeName) {
+            EditProfileScreen(onSuccess = {
+                navController.navigateUp()
+            })
+        }
+
+        composable(PastCarpoolsDestination.routeName) {
+            PastCarpoolsScreen()
         }
     }
 }
