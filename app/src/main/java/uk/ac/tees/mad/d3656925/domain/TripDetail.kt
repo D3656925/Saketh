@@ -3,7 +3,7 @@ package uk.ac.tees.mad.d3656925.domain
 import com.google.firebase.firestore.GeoPoint
 
 data class TripDetail(
-    val tripId: String,
+    var tripId: String,
     val driverId: String,
     val driverPhone: String,
     val driverCarNumber: String,

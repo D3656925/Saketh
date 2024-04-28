@@ -4,9 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +36,10 @@ import uk.ac.tees.mad.d3656925.ui.screens.ProfileDestination
 import uk.ac.tees.mad.d3656925.ui.screens.ProfileScreen
 import uk.ac.tees.mad.d3656925.ui.screens.SplashDestination
 import uk.ac.tees.mad.d3656925.ui.screens.SplashScreen
+import uk.ac.tees.mad.d3656925.ui.screens.TripDetailDestination
+import uk.ac.tees.mad.d3656925.ui.screens.TripDetailScreen
 import uk.ac.tees.mad.d3656925.ui.viewmodels.DriverViewModel
+import uk.ac.tees.mad.d3656925.ui.viewmodels.PassengerViewModel
 import uk.ac.tees.mad.d3656925.utils.location.ApplicationViewModel
 
 @Composable
@@ -48,6 +53,7 @@ fun CarpoolingApp() {
 
     val driverViewModel: DriverViewModel = hiltViewModel()
     val applicationViewModel: ApplicationViewModel = hiltViewModel()
+    val passengerViewModel: PassengerViewModel = hiltViewModel()
 
     val googleAuthUiClient by lazy {
         GoogleAuthUiClient(
@@ -146,14 +152,21 @@ fun CarpoolingApp() {
         // Driver screen destination
         composable(PassengerDestination.routeName) {
             // Display the home screen composable
-            PassengerScreen(navController = navController,
-                onClick = {
+            PassengerScreen(
+                navController = navController,
+                onSignOut = {
                     scope.launch {
                         firebase.signOut()
                         googleAuthUiClient.signOut()
                         navController.navigate(AskLoginDestination.routeName)
                     }
-                }
+                },
+                applicationViewModel = applicationViewModel,
+                viewModel = passengerViewModel,
+                onTripClick = {
+                    navController.navigate(TripDetailDestination.routeName + "/" + it)
+                },
+                driverViewModel = driverViewModel
             )
         }
 
@@ -185,7 +198,26 @@ fun CarpoolingApp() {
         }
 
         composable(PastCarpoolsDestination.routeName) {
-            PastCarpoolsScreen()
+            PastCarpoolsScreen(
+                onBack = { navController.navigateUp() },
+                onCardClick = {
+                    navController.navigate(TripDetailDestination.routeName + "/" + it)
+                }
+            )
+        }
+
+        composable(
+            route = TripDetailDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(TripDetailDestination.tripIdArg) {
+                    type = NavType.StringType
+                }
+
+            )
+        ) {
+            TripDetailScreen(onBack = {
+                navController.navigateUp()
+            })
         }
     }
 }

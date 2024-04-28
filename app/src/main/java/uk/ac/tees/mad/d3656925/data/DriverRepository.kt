@@ -4,10 +4,10 @@ import android.content.Context
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.firestore.toObject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -30,8 +30,12 @@ interface DriverRepository {
     fun getCurrentTripForDriver(): Flow<Resource<TripDetail>>
     fun markTripAsCompleted(tripId: String): Flow<Resource<String>>
     fun cancelTrip(tripId: String): Flow<Resource<String>>
-    fun getAllPastTrips(userId: String): Flow<Resource<List<TripDetail>>>
+    fun getAllPastTrips(): Flow<Resource<List<TripDetail>>>
     fun updateDriverLocation(driverId: String, newLocation: GeoPoint): Flow<Resource<Void>>
+    fun getAllTripsForPassengers(): Flow<Resource<List<TripDetail>>>
+    fun joinTrip(tripId: String, userId: String): Flow<Resource<String>>
+    fun leaveTrip(tripId: String, userId: String): Flow<Resource<String>>
+    fun hasUserJoinedTrip(tripId: String, userId: String): Flow<Resource<Boolean>>
 }
 
 class DriverRepositoryImplementation @Inject constructor(
@@ -180,7 +184,7 @@ class DriverRepositoryImplementation @Inject constructor(
                             endLocation = data["endLocation"] as String? ?: "",
                             startTime = data["startTime"] as Long? ?: 0L,
                             price = data["price"] as Double? ?: 0.0,
-                            availableSeats = data["availableSeats"] as Int? ?: 0,
+                            availableSeats = (data["availableSeats"] as Long? ?: 0).toInt(),
                             isActive = data["isActive"] as Boolean? ?: true,
                             isCancelled = data["isCancelled"] as Boolean? ?: false,
                             coordinate = data["coordinates"] as GeoPoint? ?: GeoPoint(0.0, 0.0)
@@ -289,54 +293,161 @@ class DriverRepositoryImplementation @Inject constructor(
         awaitClose { close() }
     }
 
-    override fun getAllPastTrips(userId: String): Flow<Resource<List<TripDetail>>> = callbackFlow {
+    override fun getAllTripsForPassengers(): Flow<Resource<List<TripDetail>>> = callbackFlow {
         trySend(Resource.Loading())
 
+        val query = firestore.collection("trips")
+            .whereEqualTo("isActive", true)
+            .whereEqualTo("isCancelled", false)
+
+        val subscription = query.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                trySend(Resource.Error("Error fetching trips: ${e.message}"))
+                return@addSnapshotListener
+            }
+
+            val trips = snapshot?.documents?.mapNotNull { document ->
+                val data = document.data
+                TripDetail(
+                    tripId = document.id,
+                    driverId = data?.get("driverId") as String? ?: "",
+                    driverCarNumber = data?.get("driverCarNumber") as String? ?: "",
+                    driverRating = data?.get("driverRating") as Double? ?: 4.5,
+                    driverCarName = data?.get("driverCarName") as String? ?: "",
+                    driverName = data?.get("driverName") as String? ?: "",
+                    driverImage = data?.get("driverImage") as String? ?: "",
+                    driverPhone = data?.get("driverPhone") as String? ?: "",
+                    startLocation = data?.get("startLocation") as String? ?: "",
+                    endLocation = data?.get("endLocation") as String? ?: "",
+                    startTime = data?.get("startTime") as Long? ?: 0L,
+                    price = data?.get("price") as Double? ?: 0.0,
+                    availableSeats = (data?.get("availableSeats") as Long?)?.toInt() ?: 0,
+                    isActive = data?.get("isActive") as Boolean? ?: true,
+                    isCancelled = data?.get("isCancelled") as Boolean? ?: false,
+                    coordinate = data?.get("coordinate") as GeoPoint? ?: GeoPoint(0.0, 0.0)
+                )
+            } ?: emptyList()
+
+            trySend(Resource.Success(trips))
+        }
+
+        // Clean up when the flow collection is cancelled or no longer in use
+        awaitClose { subscription.remove() }
+    }
+
+    override fun joinTrip(tripId: String, userId: String): Flow<Resource<String>> = callbackFlow {
+        trySend(Resource.Loading())
+
+        val tripRef = firestore.collection("trips").document(tripId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(tripRef)
+            val currentSeats = snapshot.getLong("availableSeats") ?: 0
+            if (currentSeats > 0) {
+                transaction.update(tripRef, "availableSeats", currentSeats - 1)
+                transaction.update(tripRef, "passengers", FieldValue.arrayUnion(userId))
+                Resource.Success("Joined trip successfully")
+            } else {
+                throw Exception("No available seats")
+            }
+        }.addOnSuccessListener {
+            trySend(it as Resource.Success<String>)
+        }.addOnFailureListener { e ->
+            trySend(Resource.Error("Failed to join trip: ${e.message}"))
+        }
+
+        awaitClose { close() }
+    }
+
+    override fun leaveTrip(tripId: String, userId: String): Flow<Resource<String>> = callbackFlow {
+        trySend(Resource.Loading())
+
+        val tripRef = firestore.collection("trips").document(tripId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(tripRef)
+            val currentSeats = snapshot.getLong("availableSeats") ?: 0
+            transaction.update(tripRef, "availableSeats", currentSeats + 1)
+            // Remove the user from the list of passengers
+            transaction.update(tripRef, "passengers", FieldValue.arrayRemove(userId))
+            Resource.Success("Left trip successfully")
+        }.addOnSuccessListener {
+            trySend(it as Resource.Success<String>)
+        }.addOnFailureListener { e ->
+            trySend(Resource.Error("Failed to leave trip: ${e.message}"))
+        }
+
+        awaitClose { close() }
+    }
+
+
+    override fun getAllPastTrips(): Flow<Resource<List<TripDetail>>> = callbackFlow {
+        trySend(Resource.Loading())
+
+        val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentUserUid == null) {
+            trySend(Resource.Error("User not logged in"))
+            close()
+            return@callbackFlow
+        }
+
         firestore.collection("trips")
-            .whereEqualTo("driverId", userId)
-            .whereEqualTo("isActive", false)
+            .whereArrayContains("passengers", currentUserUid)
+            .whereEqualTo("isCompleted", true)
             .get()
             .addOnSuccessListener { queryDocumentSnapshots ->
-                val pastTrips = queryDocumentSnapshots.documents.mapNotNull { document ->
-                    document.toObject(TripDetail::class.java)
-                }
+                val pastTrips = queryDocumentSnapshots?.documents?.mapNotNull { document ->
+                    val data = document.data
+                    TripDetail(
+                        tripId = document.id,
+                        driverId = data?.get("driverId") as String? ?: "",
+                        driverCarNumber = data?.get("driverCarNumber") as String? ?: "",
+                        driverRating = data?.get("driverRating") as Double? ?: 4.5,
+                        driverCarName = data?.get("driverCarName") as String? ?: "",
+                        driverName = data?.get("driverName") as String? ?: "",
+                        driverImage = data?.get("driverImage") as String? ?: "",
+                        driverPhone = data?.get("driverPhone") as String? ?: "",
+                        startLocation = data?.get("startLocation") as String? ?: "",
+                        endLocation = data?.get("endLocation") as String? ?: "",
+                        startTime = data?.get("startTime") as Long? ?: 0L,
+                        price = data?.get("price") as Double? ?: 0.0,
+                        availableSeats = (data?.get("availableSeats") as Long?)?.toInt() ?: 0,
+                        isActive = data?.get("isActive") as Boolean? ?: true,
+                        isCancelled = data?.get("isCancelled") as Boolean? ?: false,
+                        coordinate = data?.get("coordinate") as GeoPoint? ?: GeoPoint(0.0, 0.0)
+                    )
+                } ?: emptyList()
                 trySend(Resource.Success(pastTrips))
             }
-            .addOnFailureListener { e ->
-                trySend(Resource.Error("Failed to get past trips: ${e.message}"))
+            .addOnFailureListener { exception ->
+                trySend(Resource.Error("Failed to fetch past trips: ${exception.message}"))
             }
 
         awaitClose { close() }
     }
 
-    fun listenForTripUpdates(tripId: String): Flow<Resource<TripDetail>> = callbackFlow {
-        trySend(Resource.Loading())
+    override fun hasUserJoinedTrip(tripId: String, userId: String): Flow<Resource<Boolean>> =
+        callbackFlow {
+            trySend(Resource.Loading())
 
-        val tripRef = FirebaseFirestore.getInstance().collection("trips").document(tripId)
+            val tripRef = firestore.collection("trips").document(tripId)
 
-        // Listen for real-time updates to the trip document
-        val subscription = tripRef.addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                trySend(Resource.Error("Failed to listen for trip updates: ${e.message}"))
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null && snapshot.exists()) {
-                val tripDetail = snapshot.toObject<TripDetail>()
-                if (tripDetail != null) {
-                    trySend(Resource.Success(tripDetail))
+            tripRef.get().addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    val passengers =
+                        documentSnapshot.get("passengers") as? List<String> ?: emptyList()
+                    if (userId in passengers) {
+                        trySend(Resource.Success(true))
+                    } else {
+                        trySend(Resource.Success(false))
+                    }
                 } else {
-                    trySend(Resource.Error("Error parsing trip details"))
+                    trySend(Resource.Error("Trip not found"))
                 }
-            } else {
-                trySend(Resource.Error("Trip not found"))
+            }.addOnFailureListener { e ->
+                trySend(Resource.Error("Failed to check if user joined trip: ${e.message}"))
             }
-        }
 
-        // Await close and remove the snapshot listener when the flow is no longer collected
-        awaitClose {
-            subscription.remove()
+            awaitClose { close() }
         }
-    }
-
 }

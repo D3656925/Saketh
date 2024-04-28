@@ -2,11 +2,11 @@ package uk.ac.tees.mad.d3656925.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -97,7 +97,7 @@ class DriverViewModel @Inject constructor(
 
     fun markTripAsComplete(tripId: String) =
         viewModelScope.launch {
-            repository.markTripAsCompleted(tripId = tripId) .collect { result ->
+            repository.markTripAsCompleted(tripId = tripId).collect { result ->
                 when (result) {
                     is Resource.Error -> {
                         _markTripCompleteStatus.send(LoginStatus(isError = result.message))
@@ -116,7 +116,7 @@ class DriverViewModel @Inject constructor(
 
     fun cancelTrip(tripId: String) =
         viewModelScope.launch {
-            repository.cancelTrip(tripId = tripId) .collect { result ->
+            repository.cancelTrip(tripId = tripId).collect { result ->
                 when (result) {
                     is Resource.Error -> {
                         _cancelTripStatus.send(LoginStatus(isError = result.message))
@@ -142,7 +142,13 @@ class DriverViewModel @Inject constructor(
         latitude: Double,
         longitude: Double
     ) = viewModelScope.launch {
-        repository.addNewTrip(startLocation, endLocation, startTime, price, GeoPoint(latitude, longitude))
+        repository.addNewTrip(
+            startLocation,
+            endLocation,
+            startTime,
+            price,
+            GeoPoint(latitude, longitude)
+        )
             .collect { result ->
                 when (result) {
                     is Resource.Error -> {

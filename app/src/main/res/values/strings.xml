@@ -8,4 +8,5 @@
     <string name="driver">Driver</string>
     <string name="add_details">Add details</string>
     <string name="profile">Profile</string>
+    <string name="trip_detail">Trip Detail</string>
 </resources>

@@ -116,7 +116,7 @@ object DriverDestination : NavigationDestination {
         get() = R.string.driver
 }
 
-private val locationSource = MyLocationSource()
+val locationSource = MyLocationSource()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -691,7 +691,7 @@ class MyLocationSource : LocationSource {
     }
 }
 
-private fun newLocation(): Location {
+fun newLocation(): Location {
     val location = Location("MyLocationProvider")
     location.apply {
         latitude = 51.5074 + Random.nextFloat()
@@ -707,10 +707,11 @@ fun bitmapDescriptor(
 
     // retrieve the actual drawable
     val drawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
-    drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
+    val size = 128 // Fixed size in pixels
+    drawable.setBounds(0, 0, size, size)
     val bm = Bitmap.createBitmap(
-        drawable.intrinsicWidth,
-        drawable.intrinsicHeight,
+        size,
+        size,
         Bitmap.Config.ARGB_8888
     )
 
